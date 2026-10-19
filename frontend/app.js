@@ -190,6 +190,11 @@ connect();
 setInterval(refreshFlows, 3000);
 refreshFlows();
 fetch('/api/stats').then(r => r.json()).then(setStats);
+// initial state: alerts and ML verdict from before this page loaded
+fetch('/api/alerts').then(r => r.json()).then(d => {
+  for (const alert of d.alerts.slice().reverse()) addAlert(alert);
+});
+fetch('/api/ml').then(r => r.json()).then(d => setMl(d));
 
 /* ---------------- experiments tab ---------------- */
 let expLoaded = false;

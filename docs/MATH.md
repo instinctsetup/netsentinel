@@ -29,3 +29,15 @@ Features (10): SYN count, SYN-ACK count, RST count, DNS count, HTTP count, UDP c
 ## 5. ROC AUC (in metrics.py)
 
 The probability that a randomly chosen attack window scores higher than a randomly chosen benign window. Computed by direct comparison of all pairs (the rank formulation), not by sklearn. 1.0 = perfect separation, 0.5 = coin flip.
+
+## 6. Why UDP floods are a rate problem, not a state problem
+
+TCP floods fail against the *handshake*: half-open counters climb, so state is the signal. UDP has no handshake and no state - a flood is just "too many datagrams into one port per window". The detector is a plain count, `max_udp_target`, which makes the threshold the entire design decision: the intensity experiment (docs/experiments) shows the lab's rule flips from 0/5 detections to 5/5 between 40 and 60 datagrams per window. Below the threshold a flood hides as heavy-but-legal traffic; that trade-off (false negatives vs false alarms) is the ROC curve's whole reason to exist.
+
+## 7. Precision, recall, F1
+
+For a detector, on a set of labelled windows: precision = TP / (TP + FP) answers "of everything we flagged, how much was real?"; recall = TP / (TP + FN) answers "of all real attacks, how much did we catch?". F1 is their harmonic mean - it punishes a detector that wins one by sacrificing the other (flag everything: recall 1.0, precision ~0). Our metrics.py computes these from a hand-built confusion matrix, no sklearn.
+
+## 8. Cross-validation and why we stratify
+
+k-fold CV trains k times, each time testing on a different held-out fold, and reports mean +/- std - a model that only works on one lucky split shows up as a large std. We stratify (each fold keeps the class ratio) because with rare-event data a random fold can contain zero attacks or zero benign windows, and then precision/AUC are not even defined.

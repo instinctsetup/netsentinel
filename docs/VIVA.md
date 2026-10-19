@@ -26,3 +26,18 @@ Rules need a human to anticipate the attack shape. A learned model can weigh sof
 
 **Q: What would you add next?**
 UDP amplification simulation, periodicity detection (beaconing), exporting pcaps for Wireshark, and running the analyzer on a real interface with sudo.
+
+**Q: You added ICMP. What's interesting about ping sweeps?**
+ICMP echo (type 8) needs no port and no handshake - it asks "are you alive?". A sweep sends echoes to every address in a subnet; live hosts answer (type 0). It is reconnaissance: the map an attacker draws before choosing an attack. Our detector counts distinct destinations per source; a normal host pings its gateway, not 40 neighbours. Crafting raw ICMP needs CAP_NET_RAW, so like the SYN flood the segments are narrated - the wire bytes are identical to what a raw socket would send.
+
+**Q: UDP flood vs SYN flood - why does the detector look so different?**
+SYN flood = state exhaustion: the signal is structural (half-open count climbs, handshakes never finish). UDP flood = pure volume: there is no state to watch, only rate. One is a queueing attack, the other is a bandwidth attack; real-world UDP floods also exploit amplification (small query, huge response - DNS/NTP amplification), which is worth mentioning.
+
+**Q: What does your packet inspector prove?**
+That the packets are real wire format. Every packet carries its raw bytes; the inspector shows the hex dump next to the decoded fields. You can verify by hand: first nibble 4 = IPv4, header checksum validates to zero, TCP data-offset says 5 words, DNS labels are length-prefixed. Nothing is a JSON fantasy.
+
+**Q: Your experiments show F1 = 1.0 in places. Isn't that suspicious?**
+Yes, and we say so on the dashboard and in the report. The ML is trained and tested on the same generator's distribution - it measures separability of *lab* traffic, not internet traffic. The interesting numbers are elsewhere: the intensity curves (how small an attack still trips a rule), the train-size curve (F1 climbs 0.61 -> 1.0 with more windows), and single-feature analysis (which signals carry detection alone). Honest limits are a feature of the project, not an apology.
+
+**Q: How does experiment tracking work?**
+`python run_experiments.py` collects fresh labelled windows through the same pipeline as the live server, runs the suite (rules vs ML, ROC sweep, stratified k-fold, single-feature analysis, train-size curve, detection-vs-intensity), and appends the results with git sha + timestamp to `docs/experiments/results.json`. The dashboard's Experiments tab serves that file - the numbers on screen are always the last real run.

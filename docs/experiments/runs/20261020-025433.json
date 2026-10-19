@@ -1,0 +1,344 @@
+{
+  "run_id": "20261020-025433",
+  "git": "a13e818",
+  "samples_per_class": 12,
+  "windows": 72,
+  "duration_s": 23.2,
+  "rules_vs_ml": {
+    "rules": {
+      "confusion": {
+        "tp": 24,
+        "tn": 5,
+        "fp": 0,
+        "fn": 0
+      },
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "ml": {
+      "confusion": {
+        "tp": 24,
+        "tn": 5,
+        "fp": 0,
+        "fn": 0
+      },
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "auc": 1.0
+    }
+  },
+  "roc": {
+    "points": [
+      {
+        "threshold": 0.02,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.073,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.127,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.18,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.233,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.287,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.34,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.393,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.447,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.5,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.553,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.607,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.66,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.713,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.767,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.82,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.873,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.927,
+        "tpr": 1.0,
+        "fpr": 0.0
+      },
+      {
+        "threshold": 0.98,
+        "tpr": 1.0,
+        "fpr": 0.0
+      }
+    ],
+    "auc": 1.0
+  },
+  "kfold_cv": {
+    "k": 4,
+    "f1_mean": 1.0,
+    "f1_std": 0.0,
+    "auc_mean": 1.0,
+    "auc_std": 0.0
+  },
+  "feature_ablation": {
+    "baseline_f1": 0.5263,
+    "train_per_class": 4,
+    "drops": [
+      {
+        "feature": "syn",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      },
+      {
+        "feature": "syn_ack",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      },
+      {
+        "feature": "rst",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      },
+      {
+        "feature": "dns",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      },
+      {
+        "feature": "http",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      },
+      {
+        "feature": "udp",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      },
+      {
+        "feature": "icmp_echo",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      },
+      {
+        "feature": "max_distinct_ports",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      },
+      {
+        "feature": "max_syn_target",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      },
+      {
+        "feature": "max_udp_target",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      },
+      {
+        "feature": "max_icmp_targets",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      },
+      {
+        "feature": "avg_label_len",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      },
+      {
+        "feature": "avg_label_entropy",
+        "f1_without": 0.5263,
+        "f1_drop": 0.0
+      }
+    ]
+  },
+  "train_size_curve": [
+    {
+      "train_per_class": 2,
+      "f1_mean": 0.613,
+      "f1_std": 0.0892
+    },
+    {
+      "train_per_class": 4,
+      "f1_mean": 0.7112,
+      "f1_std": 0.1448
+    },
+    {
+      "train_per_class": 8,
+      "f1_mean": 0.8696,
+      "f1_std": 0.0
+    },
+    {
+      "train_per_class": 12,
+      "f1_mean": 1.0,
+      "f1_std": 0.0
+    }
+  ],
+  "intensity": {
+    "port_scan": [
+      {
+        "intensity": 4,
+        "detection_rate": 0.0
+      },
+      {
+        "intensity": 8,
+        "detection_rate": 0.0
+      },
+      {
+        "intensity": 12,
+        "detection_rate": 1.0
+      },
+      {
+        "intensity": 20,
+        "detection_rate": 1.0
+      },
+      {
+        "intensity": 40,
+        "detection_rate": 1.0
+      },
+      {
+        "intensity": 80,
+        "detection_rate": 1.0
+      }
+    ],
+    "syn_flood": [
+      {
+        "intensity": 10,
+        "detection_rate": 0.0
+      },
+      {
+        "intensity": 20,
+        "detection_rate": 0.0
+      },
+      {
+        "intensity": 30,
+        "detection_rate": 1.0
+      },
+      {
+        "intensity": 60,
+        "detection_rate": 1.0
+      },
+      {
+        "intensity": 120,
+        "detection_rate": 1.0
+      }
+    ],
+    "dns_tunnel": [
+      {
+        "intensity": 2,
+        "detection_rate": 1.0
+      },
+      {
+        "intensity": 4,
+        "detection_rate": 1.0
+      },
+      {
+        "intensity": 8,
+        "detection_rate": 1.0
+      },
+      {
+        "intensity": 16,
+        "detection_rate": 1.0
+      }
+    ],
+    "ping_sweep": [
+      {
+        "intensity": 4,
+        "detection_rate": 0.0
+      },
+      {
+        "intensity": 8,
+        "detection_rate": 0.0
+      },
+      {
+        "intensity": 10,
+        "detection_rate": 1.0
+      },
+      {
+        "intensity": 20,
+        "detection_rate": 1.0
+      },
+      {
+        "intensity": 40,
+        "detection_rate": 1.0
+      }
+    ],
+    "udp_flood": [
+      {
+        "intensity": 20,
+        "detection_rate": 0.0
+      },
+      {
+        "intensity": 40,
+        "detection_rate": 0.0
+      },
+      {
+        "intensity": 60,
+        "detection_rate": 1.0
+      },
+      {
+        "intensity": 120,
+        "detection_rate": 1.0
+      },
+      {
+        "intensity": 200,
+        "detection_rate": 1.0
+      }
+    ]
+  }
+}

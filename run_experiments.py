@@ -43,14 +43,14 @@ def save_charts(res):
     fig.savefig(CHARTS / "roc_curve.png", dpi=150); plt.close(fig)
 
     # 2. Feature ablation
-    drops = res["feature_ablation"]["drops"][:10]
+    solo = res["feature_ablation"]["solo"]
     fig, ax = plt.subplots(figsize=(6.4, 4.2))
-    names = [d["feature"] for d in drops][::-1]
-    vals = [d["f1_drop"] for d in drops][::-1]
-    colors = ["#f85149" if v > 0 else "#3fb950" for v in vals]
+    names = [d["feature"] for d in solo][::-1]
+    vals = [d["f1_solo"] for d in solo][::-1]
+    colors = ["#3fb950" if v > 0.8 else ("#d29922" if v > 0.5 else "#f85149") for v in vals]
     ax.barh(names, vals, color=colors)
-    ax.set_xlabel("F1 drop when feature removed")
-    ax.set_title(f"Feature ablation (baseline F1={res['feature_ablation']['baseline_f1']})")
+    ax.set_xlabel("F1 of a model using only this feature")
+    ax.set_title(f"Which features carry detection alone? (all-features F1={res['feature_ablation']['baseline_f1']})")
     ax.grid(axis="x", alpha=.4); fig.tight_layout()
     fig.savefig(CHARTS / "feature_ablation.png", dpi=150); plt.close(fig)
 
@@ -108,7 +108,7 @@ async def main():
         "kfold_cv": experiments.kfold_cv(rows),
         "feature_ablation": experiments.feature_ablation(rows),
         "train_size_curve": experiments.train_size_curve(
-            rows, sizes=(2, 4, 6) if args.quick else (2, 4, 8, 12)),
+            rows, sizes=(2, 3) if args.quick else (2, 4, 8, 12)),
         "intensity": await experiments.intensity_curve(),
     }
     res["duration_s"] = round(time.time() - t0, 1)

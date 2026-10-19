@@ -49,6 +49,8 @@ class LabServices:
                 conn, _ = self.http.accept()
             except socket.timeout:
                 continue
+            except OSError:
+                break   # socket closed on shutdown
             try:
                 conn.recv(4096)
                 conn.sendall(b"HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello")
@@ -62,6 +64,8 @@ class LabServices:
                 data, addr = self.dns.recvfrom(4096)
             except socket.timeout:
                 continue
+            except OSError:
+                break   # socket closed on shutdown
             try:
                 q = packets.parse_dns_query(data)
                 if q["name"].endswith(".exfil.lab"):

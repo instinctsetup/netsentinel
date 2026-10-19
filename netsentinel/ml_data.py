@@ -13,9 +13,13 @@ async def _collect(kind: str, services) -> dict:
     table = flows.FlowTable(window_s=60)
     st = stack_mod.VirtualStack(lambda pkt: table.update(pkt))
     if kind == "benign":
-        for _ in range(3):
+        names = random.sample(["www.example.com", "mail.example.org", "cdn.site.net",
+                               "api.service.io", "news.portal.com"], 3)
+        for name in names:
             await generator.normal_web_session(st, services)
-            await generator.normal_dns_lookup(st, services)
+            await generator.normal_dns_lookup(st, services, name=name)
+        if random.random() < 0.5:   # a normal user pings their gateway sometimes
+            await generator.ping_sweep(st, services, hosts=[1], live_hosts=(1,))
     elif kind == "port_scan":
         await generator.port_scan(st, services, ports=random.sample(range(1, 130), 70))
     elif kind == "syn_flood":

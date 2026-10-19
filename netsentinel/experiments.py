@@ -40,7 +40,7 @@ async def collect_labeled_windows(samples_per_class: int, seed: int = 7):
             for kind in KINDS:
                 feats = await ml_data._collect(kind, services)
                 rows.append((feats, 0 if kind == "benign" else 1, kind))
-                if i % 4 == 0:
+                if i % 8 == 0:
                     print(f"  collected {len(rows)} windows...", flush=True)
     finally:
         services.close()
@@ -55,19 +55,36 @@ def vectorize(rows, feature_order=None):
 
 
 def split_rows(rows, train_frac=0.6, seed=1):
-    idx = list(range(len(rows)))
-    random.Random(seed).shuffle(idx)
-    cut = int(len(idx) * train_frac)
-    return [rows[i] for i in idx[:cut]], [rows[i] for i in idx[cut:]]
+    """Stratified split: both classes are guaranteed in train AND test."""
+    rng = random.Random(seed)
+    train, test = [], []
+    for label in (0, 1):
+        idx = [i for i, r in enumerate(rows) if r[1] == label]
+        rng.shuffle(idx)
+        cut = max(1, int(len(idx) * train_frac))
+        train += [rows[i] for i in idx[:cut]]
+        test += [rows[i] for i in idx[cut:]]
+    return train, test
+
+
+def _clean(obj):
+    """NaN is not valid JSON - map it to None so the dashboard can parse results."""
+    if isinstance(obj, float) and obj != obj:
+        return None
+    if isinstance(obj, dict):
+        return {k: _clean(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_clean(v) for v in obj]
+    return obj
 
 
 def train_on(rows, feature_order=None):
     order = feature_order or detectors.FEATURE_ORDER
     X, y = vectorize(rows, order)
-    clf = detectors.WindowClassifier()
     old = detectors.FEATURE_ORDER
-    detectors.FEATURE_ORDER = order
+    detectors.FEATURE_ORDER = order   # construct + fit under the ablated order
     try:
+        clf = detectors.WindowClassifier()
         clf.fit(X, y)
     finally:
         detectors.FEATURE_ORDER = old
@@ -85,9 +102,9 @@ def score(clf, rows, threshold=0.5, feature_order=None):
     y = np.array([label for _, label, _ in rows], dtype=float)
     pred = (scores >= threshold).astype(int)
     cm = metrics.confusion(y, pred)
-    return {"scores": scores.tolist(), "y": y.tolist(),
-            "confusion": cm, **metrics.precision_recall_f1(cm),
-            "auc": metrics.roc_auc(y, scores)}
+    return _clean({"scores": scores.tolist(), "y": y.tolist(),
+                   "confusion": cm, **metrics.precision_recall_f1(cm),
+                   "auc": metrics.roc_auc(y, scores)})
 
 
 def rule_score(rows):
@@ -117,34 +134,41 @@ def roc_points(rows, steps=19):
 
 
 def kfold_cv(rows, k=4, seed=5):
-    """k-fold cross-validation, mean +/- std of F1 and AUC."""
-    idx = list(range(len(rows)))
-    random.Random(seed).shuffle(idx)
-    folds = [idx[i::k] for i in range(k)]
+    """Stratified k-fold cross-validation: every fold keeps the class ratio."""
+    rng = random.Random(seed)
+    folds = [[] for _ in range(k)]
+    for label in (0, 1):
+        idx = [i for i, r in enumerate(rows) if r[1] == label]
+        rng.shuffle(idx)
+        for j, i in enumerate(idx):
+            folds[j % k].append(i)
     f1s, aucs = [], []
     for f in range(k):
         test = [rows[i] for i in folds[f]]
         train = [rows[i] for j, fold in enumerate(folds) if j != f for i in fold]
-        clf = train_on(train)
-        s = score(clf, test)
+        s = score(train_on(train), test)
         f1s.append(s["f1"])
-        aucs.append(s["auc"])
-    return {"k": k, "f1_mean": round(float(np.mean(f1s)), 4), "f1_std": round(float(np.std(f1s)), 4),
-            "auc_mean": round(float(np.mean(aucs)), 4), "auc_std": round(float(np.std(aucs)), 4)}
+        if s["auc"] is not None:
+            aucs.append(s["auc"])
+    return _clean({"k": k, "f1_mean": round(float(np.mean(f1s)), 4),
+                   "f1_std": round(float(np.std(f1s)), 4),
+                   "auc_mean": round(float(np.mean(aucs)), 4) if aucs else None,
+                   "auc_std": round(float(np.std(aucs)), 4) if aucs else None})
 
 
 def feature_ablation(rows):
-    """Leave-one-feature-out: how much F1 drops when each feature is removed."""
+    """Single-feature analysis: F1 of a model trained on that feature alone.
+
+    More informative than leave-one-out on a small, redundant feature set:
+    it shows which signals carry detection by themselves."""
     train, test = split_rows(rows, 0.6, seed=11)
     base = score(train_on(train), test)["f1"]
-    drops = []
+    solo = []
     for feat in detectors.FEATURE_ORDER:
-        order = [f for f in detectors.FEATURE_ORDER if f != feat]
-        ablated = score(train_on(train, order), test, feature_order=order)["f1"]
-        drops.append({"feature": feat, "f1_without": round(ablated, 4),
-                      "f1_drop": round(base - ablated, 4)})
-    drops.sort(key=lambda d: -d["f1_drop"])
-    return {"baseline_f1": round(base, 4), "drops": drops}
+        s = score(train_on(train, [feat]), test, feature_order=[feat])["f1"]
+        solo.append({"feature": feat, "f1_solo": round(s, 4)})
+    solo.sort(key=lambda d: -d["f1_solo"])
+    return {"baseline_f1": round(base, 4), "solo": solo}
 
 
 def train_size_curve(rows, sizes=(2, 4, 8, 12), seeds=(1, 2, 3)):

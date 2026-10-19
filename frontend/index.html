@@ -2,53 +2,128 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>netsentinel - network security lab</title>
+<title>netsentinel · network security lab</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<header>
-  <h1>netsentinel</h1>
-  <p class="sub">generate traffic &middot; parse packets &middot; assemble flows &middot; catch attacks</p>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">◉</span>
+    <div>
+      <h1>netsentinel</h1>
+      <p class="sub">build packets · assemble flows · catch attacks — a network security lab</p>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="live">Live lab</button>
+    <button class="tab" data-tab="experiments">Experiments</button>
+  </nav>
+  <div class="conn"><span id="ws-dot" class="dot"></span><span id="ws-label">connecting…</span></div>
 </header>
 
-<section class="console">
-  <h2>Attack console</h2>
-  <div class="buttons">
-    <button data-scenario="browse">Normal browsing</button>
-    <button data-scenario="port_scan" class="attack">Launch port scan</button>
-    <button data-scenario="syn_flood" class="attack">Launch SYN flood</button>
-    <button data-scenario="dns_tunnel" class="attack">Launch DNS tunnel</button>
-  </div>
-  <div id="ml-box">
-    <h3>ML add-on (logistic regression on window features)</h3>
-    <div id="ml-verdict">waiting for traffic&hellip;</div>
-    <div class="meter"><div id="ml-bar"></div></div>
-  </div>
-</section>
+<!-- ============ LIVE TAB ============ -->
+<main id="tab-live" class="tabpage active">
 
-<section class="alerts">
-  <h2>Alerts (rule-based detectors)</h2>
-  <ul id="alert-list"><li class="quiet">no alerts yet</li></ul>
-</section>
+  <section class="statcards">
+    <div class="card"><div class="card-label">packets / s</div><div class="card-value" id="stat-rate">0</div></div>
+    <div class="card"><div class="card-label">total packets</div><div class="card-value" id="stat-total">0</div></div>
+    <div class="card"><div class="card-label">flows</div><div class="card-value" id="stat-flows">0</div></div>
+    <div class="card warn"><div class="card-label">half-open</div><div class="card-value" id="stat-halfopen">0</div></div>
+    <div class="card danger"><div class="card-label">alerts</div><div class="card-value" id="stat-alerts">0</div></div>
+  </section>
 
-<section class="grid">
-  <div class="panel">
-    <h2>Live packet feed <span class="hint">parsed from wire-format bytes</span></h2>
-    <table id="packets">
-      <thead><tr><th>proto</th><th>source</th><th>destination</th><th>flags / name</th><th>len</th></tr></thead>
-      <tbody></tbody>
-    </table>
+  <section class="panel chart-panel">
+    <div class="panel-head"><h2>Throughput</h2><span class="hint">packets per second, last 3 minutes</span></div>
+    <canvas id="chart" height="90"></canvas>
+  </section>
+
+  <section class="panel console-panel">
+    <div class="panel-head"><h2>Attack console</h2><span class="hint">every scenario moves real bytes through real localhost sockets</span></div>
+    <div class="buttons" id="scenario-buttons">
+      <button data-scenario="browse" class="benign"><b>Normal browsing</b><span>HTTP sessions + DNS lookups</span></button>
+      <button data-scenario="port_scan" class="attack"><b>Port scan</b><span>real connect() fan-out, ports 1–100</span></button>
+      <button data-scenario="syn_flood" class="attack"><b>SYN flood</b><span>150 crafted SYNs, spoofed sources</span></button>
+      <button data-scenario="dns_tunnel" class="attack"><b>DNS tunnel</b><span>secret exfiltrated in query labels</span></button>
+      <button data-scenario="ping_sweep" class="attack"><b>Ping sweep</b><span>ICMP echo across 10.0.2.0/24</span></button>
+      <button data-scenario="udp_flood" class="attack"><b>UDP flood</b><span>200 datagrams into one port</span></button>
+    </div>
+  </section>
+
+  <div class="columns">
+    <section class="panel alerts-panel">
+      <div class="panel-head"><h2>Alerts</h2><span class="hint">rule-based detectors, explained</span></div>
+      <ul id="alert-list"><li class="quiet">no alerts yet — launch an attack</li></ul>
+      <div class="ml-box">
+        <div class="panel-head"><h2>ML add-on</h2><span class="hint">logistic regression over window features</span></div>
+        <div class="ml-row">
+          <div class="meter"><div id="ml-bar"></div></div>
+          <div id="ml-prob" class="ml-prob">—</div>
+        </div>
+        <div id="ml-verdict" class="ml-verdict">waiting for traffic…</div>
+      </div>
+    </section>
+
+    <section class="panel flows-panel">
+      <div class="panel-head"><h2>Flow table</h2><span class="hint">5-tuple assembly + TCP state machine</span></div>
+      <table id="flows">
+        <thead><tr><th>source</th><th>destination</th><th>proto</th><th>pkts</th><th>state</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
   </div>
-  <div class="panel">
-    <h2>Flow table <span class="hint">5-tuple assembly + TCP state machine</span></h2>
-    <div class="halfopen">half-open connections: <b id="half-open">0</b></div>
-    <table id="flows">
-      <thead><tr><th>source</th><th>destination</th><th>proto</th><th>pkts</th><th>TCP state</th></tr></thead>
-      <tbody></tbody>
-    </table>
+
+  <div class="columns wide-left">
+    <section class="panel feed-panel">
+      <div class="panel-head"><h2>Live packet feed</h2><span class="hint">click a packet to inspect its bytes</span></div>
+      <table id="packets">
+        <thead><tr><th>time</th><th>proto</th><th>source</th><th>destination</th><th>flags / name</th><th>len</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel inspector-panel">
+      <div class="panel-head"><h2>Packet inspector</h2><span class="hint" id="insp-sub">select a packet</span></div>
+      <div id="inspector-empty" class="insp-empty">◈<br>Click any packet in the feed<br>to see its decoded fields and raw bytes.</div>
+      <div id="inspector" class="hidden">
+        <div id="insp-fields"></div>
+        <h3 class="hexhead">raw wire bytes</h3>
+        <pre id="insp-hex" class="hexdump"></pre>
+      </div>
+    </section>
   </div>
-</section>
+</main>
+
+<!-- ============ EXPERIMENTS TAB ============ -->
+<main id="tab-experiments" class="tabpage">
+  <section class="panel">
+    <div class="panel-head"><h2>Latest experiment run</h2><span class="hint" id="exp-meta">loaded from docs/experiments/results.json — the last real run</span></div>
+    <div id="exp-empty" class="quiet hidden">No experiment run logged yet. Run <code>python run_experiments.py</code> (~4 min) to generate these numbers.</div>
+    <div id="exp-body" class="hidden">
+      <div class="exp-grid">
+        <div class="exp-block">
+          <h3>Rules vs ML, head-to-head <span class="hint">held-out windows</span></h3>
+          <table class="exp-table" id="exp-h2h"></table>
+        </div>
+        <div class="exp-block">
+          <h3>Cross-validation <span class="hint">stratified k-fold</span></h3>
+          <table class="exp-table" id="exp-cv"></table>
+        </div>
+      </div>
+      <div class="exp-charts">
+        <figure><img src="/charts/roc_curve.png" alt="ROC curve"><figcaption>ROC — held-out windows</figcaption></figure>
+        <figure><img src="/charts/feature_ablation.png" alt="Feature ablation"><figcaption>Leave-one-feature-out</figcaption></figure>
+        <figure><img src="/charts/train_size.png" alt="Training set size curve"><figcaption>Data scaling</figcaption></figure>
+        <figure><img src="/charts/intensity.png" alt="Detection vs attack intensity"><figcaption>Detection vs intensity</figcaption></figure>
+      </div>
+      <p class="honesty">Honesty note: these windows come from the lab's own generator, so scores measure how well the detectors
+      separate <i>this lab's</i> traffic — not the open internet. That limitation is deliberate and documented in the report.</p>
+    </div>
+  </section>
+</main>
+
+<footer>netsentinel · IIT Patna CN course project · every packet built & parsed at the byte level · no scapy, no sklearn</footer>
 <script src="/static/app.js"></script>
 </body>
 </html>

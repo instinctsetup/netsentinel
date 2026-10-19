@@ -1,0 +1,30 @@
+{
+  "browse": {
+    "new_alerts": [],
+    "ml_probability": 0.0,
+    "ml_verdict": "benign-like window"
+  },
+  "port_scan": {
+    "new_alerts": [
+      "PORT_SCAN"
+    ],
+    "ml_probability": 0.05,
+    "ml_verdict": "benign-like window"
+  },
+  "syn_flood": {
+    "new_alerts": [
+      "PORT_SCAN",
+      "SYN_FLOOD"
+    ],
+    "ml_probability": 1.0,
+    "ml_verdict": "attack-like window"
+  },
+  "dns_tunnel": {
+    "new_alerts": [
+      "SYN_FLOOD",
+      "DNS_TUNNEL"
+    ],
+    "ml_probability": 1.0,
+    "ml_verdict": "attack-like window"
+  }
+}

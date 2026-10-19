@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>netsentinel - network security lab</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>netsentinel</h1>
+  <p class="sub">generate traffic &middot; parse packets &middot; assemble flows &middot; catch attacks</p>
+</header>
+
+<section class="console">
+  <h2>Attack console</h2>
+  <div class="buttons">
+    <button data-scenario="browse">Normal browsing</button>
+    <button data-scenario="port_scan" class="attack">Launch port scan</button>
+    <button data-scenario="syn_flood" class="attack">Launch SYN flood</button>
+    <button data-scenario="dns_tunnel" class="attack">Launch DNS tunnel</button>
+  </div>
+  <div id="ml-box">
+    <h3>ML add-on (logistic regression on window features)</h3>
+    <div id="ml-verdict">waiting for traffic&hellip;</div>
+    <div class="meter"><div id="ml-bar"></div></div>
+  </div>
+</section>
+
+<section class="alerts">
+  <h2>Alerts (rule-based detectors)</h2>
+  <ul id="alert-list"><li class="quiet">no alerts yet</li></ul>
+</section>
+
+<section class="grid">
+  <div class="panel">
+    <h2>Live packet feed <span class="hint">parsed from wire-format bytes</span></h2>
+    <table id="packets">
+      <thead><tr><th>proto</th><th>source</th><th>destination</th><th>flags / name</th><th>len</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <h2>Flow table <span class="hint">5-tuple assembly + TCP state machine</span></h2>
+    <div class="halfopen">half-open connections: <b id="half-open">0</b></div>
+    <table id="flows">
+      <thead><tr><th>source</th><th>destination</th><th>proto</th><th>pkts</th><th>TCP state</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+<script src="/static/app.js"></script>
+</body>
+</html>

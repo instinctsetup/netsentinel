@@ -21,6 +21,7 @@ class VirtualStack:
         wire = packets.build_ipv4(src_ip, dst_ip, 6, segment)
         event = packets.parse_packet(wire)
         event["direction"] = direction
+        event["raw"] = wire.hex()
         self.tap(event)
 
     def open(self, c_ip, c_port, s_ip, s_port, success=True):

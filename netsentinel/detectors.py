@@ -24,7 +24,9 @@ def shannon_entropy(text: str) -> float:
 def window_features(pkts: list[dict], flows=None) -> dict:
     """Summarize a time window of packets into detector-ready numbers."""
     f = {"syn": 0, "syn_ack": 0, "rst": 0, "dns": 0, "http": 0, "udp": 0,
-         "scan_ports": defaultdict(set), "dns_labels": [], "syn_targets": defaultdict(int)}
+         "icmp_echo": 0, "scan_ports": defaultdict(set), "dns_labels": [],
+         "syn_targets": defaultdict(int), "udp_targets": defaultdict(int),
+         "icmp_targets": defaultdict(set)}
     for p in pkts:
         if "tcp" in p:
             flags = p["tcp"]["flags"]
@@ -38,6 +40,10 @@ def window_features(pkts: list[dict], flows=None) -> dict:
                 f["rst"] += 1
         if "udp" in p:
             f["udp"] += 1
+            f["udp_targets"][(p["ip"]["dst"], p["udp"]["dst_port"])] += 1
+        if "icmp" in p and p["icmp"]["type"] == 8:
+            f["icmp_echo"] += 1
+            f["icmp_targets"][p["ip"]["src"]].add(p["ip"]["dst"])
         if p.get("app") == "DNS" and p.get("dns"):
             f["dns"] += 1
             f["dns_labels"].append(p["dns"]["labels"][0] if p["dns"]["labels"] else "")
@@ -45,6 +51,8 @@ def window_features(pkts: list[dict], flows=None) -> dict:
             f["http"] += 1
     f["max_distinct_ports"] = max((len(v) for v in f["scan_ports"].values()), default=0)
     f["max_syn_target"] = max(f["syn_targets"].values(), default=0)
+    f["max_udp_target"] = max(f["udp_targets"].values(), default=0)
+    f["max_icmp_targets"] = max((len(v) for v in f["icmp_targets"].values()), default=0)
     f["avg_label_len"] = float(np.mean([len(l) for l in f["dns_labels"]])) if f["dns_labels"] else 0.0
     f["avg_label_entropy"] = float(np.mean([shannon_entropy(l) for l in f["dns_labels"]])) if f["dns_labels"] else 0.0
     return f
@@ -62,11 +70,18 @@ def rule_alerts(feats: dict, half_open: int) -> list[dict]:
     if feats["dns"] >= 2 and (feats["avg_label_len"] > 25 or feats["avg_label_entropy"] > 3.6):
         alerts.append({"kind": "DNS_TUNNEL", "severity": "high",
                        "why": f"DNS labels averaging {feats['avg_label_len']:.0f} chars at {feats['avg_label_entropy']:.2f} bits/char entropy - real hostnames are short and word-like"})
+    if feats["max_icmp_targets"] >= 10:
+        alerts.append({"kind": "PING_SWEEP", "severity": "medium",
+                       "why": f"one source sent ICMP echo requests to {feats['max_icmp_targets']} different hosts - that is subnet discovery, not connectivity checking"})
+    if feats["max_udp_target"] >= 60:
+        alerts.append({"kind": "UDP_FLOOD", "severity": "critical",
+                       "why": f"{feats['max_udp_target']} UDP datagrams into one port in one window - UDP has no handshake, so nothing slows the blast"})
     return alerts
 
 
-FEATURE_ORDER = ["syn", "syn_ack", "rst", "dns", "http", "udp",
-                 "max_distinct_ports", "max_syn_target", "avg_label_len", "avg_label_entropy"]
+FEATURE_ORDER = ["syn", "syn_ack", "rst", "dns", "http", "udp", "icmp_echo",
+                 "max_distinct_ports", "max_syn_target", "max_udp_target",
+                 "max_icmp_targets", "avg_label_len", "avg_label_entropy"]
 
 
 class WindowClassifier:

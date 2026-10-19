@@ -4,7 +4,7 @@ Everything here works on raw bytes, exactly as they travel on the wire.
 Each protocol has a `build_*` (bytes -> packet) and a `parse_*`
 (bytes -> friendly dict) so the tests can round-trip every header.
 
-Protocols: IPv4 (RFC 791), TCP (RFC 793), UDP (RFC 768), DNS (RFC 1035).
+Protocols: IPv4 (RFC 791), TCP (RFC 793), UDP (RFC 768), ICMP (RFC 792), DNS (RFC 1035).
 """
 import struct
 
@@ -120,6 +120,34 @@ def parse_dns_query(raw: bytes) -> dict:
             "question_bytes": i + 5}
 
 
+
+# ---------------------------------------------------------------- ICMP
+ICMP_TYPES = {0: "ECHO_REPLY", 8: "ECHO_REQUEST", 3: "DEST_UNREACHABLE", 11: "TIME_EXCEEDED"}
+
+def build_icmp(icmp_type: int, code: int, payload: bytes = b"",
+               ident: int = 0, seq: int = 0) -> bytes:
+    """Assemble an ICMP message (RFC 792): type, code, checksum, then the
+    4-byte "rest of header" (identifier + sequence for echo messages)."""
+    body = struct.pack("!HH", ident, seq) + payload if icmp_type in (0, 8) else payload
+    header = struct.pack("!BBH", icmp_type, code, 0)
+    checksum = ipv4_checksum(header + body)
+    return struct.pack("!BBH", icmp_type, code, checksum) + body
+
+
+def parse_icmp(raw: bytes) -> dict:
+    """Pull an ICMP message apart into named fields."""
+    icmp_type, code, cksum = struct.unpack("!BBH", raw[:4])
+    out = {"type": icmp_type, "type_name": ICMP_TYPES.get(icmp_type, str(icmp_type)),
+           "code": code, "checksum": cksum, "payload": raw[4:]}
+    if icmp_type in (0, 8) and len(raw) >= 8:
+        out["id"], out["seq"] = struct.unpack("!HH", raw[4:8])
+    return out
+
+
+def build_icmp_echo(ident: int = 0, seq: int = 0, payload: bytes = b"netsentinel-ping") -> bytes:
+    """Convenience: an echo request (ping)."""
+    return build_icmp(8, 0, payload, ident, seq)
+
 # ------------------------------------------------------- small helpers
 def socket_aton(ip: str) -> bytes:
     return bytes(int(part) for part in ip.split("."))
@@ -141,11 +169,21 @@ def parse_packet(raw: bytes) -> dict:
         elif 80 in (tcp["src_port"], tcp["dst_port"]) or 8000 in (tcp["src_port"], tcp["dst_port"]):
             result["app"] = "HTTP"
         result["payload_len"] = len(tcp["payload"])
+    elif ip["protocol"] == 1:
+        icmp = parse_icmp(ip["payload"])
+        result["icmp"] = {k: v for k, v in icmp.items() if k != "payload"}
+        result["app"] = "ICMP"
+        result["payload_len"] = len(icmp["payload"])
     elif ip["protocol"] == 17:
         udp = parse_udp(ip["payload"])
         result["udp"] = {k: v for k, v in udp.items() if k != "payload"}
         if 53 in (udp["src_port"], udp["dst_port"]):
-            result["app"] = "DNS"
-            result["dns"] = parse_dns_query(udp["payload"])
+            try:
+                result["dns"] = parse_dns_query(udp["payload"])
+                result["app"] = "DNS"
+            except Exception:
+                # Port 53 traffic that is not a parseable DNS query - that
+                # itself is suspicious (floods blast random bytes at DNS).
+                result["app"] = "UDP/53"
         result["payload_len"] = len(udp["payload"])
     return result

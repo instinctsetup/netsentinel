@@ -124,15 +124,19 @@ async def normal_dns_lookup(st: stack_mod.VirtualStack, services: LabServices,
         sock.close()
 
 
-def tap_udp(st, wire, services, src=CLIENT_IP, dst=SERVER_IP):
-    pkt = packets.parse_packet(packets.build_ipv4(src, dst, 17, packets.build_udp(_ephemeral(), 53, wire)))
+def tap_udp(st, wire, services, src=CLIENT_IP, dst=SERVER_IP, sport=None, dport=53):
+    ip = packets.build_ipv4(src, dst, 17, packets.build_udp(sport or _ephemeral(), dport, wire))
+    pkt = packets.parse_packet(ip)
     pkt["direction"] = "c>s"
+    pkt["raw"] = ip.hex()
     st.tap(pkt)
 
 
-def tap_udp_response(st, wire, services):
-    pkt = packets.parse_packet(packets.build_ipv4(SERVER_IP, CLIENT_IP, 17, packets.build_udp(53, _ephemeral(), wire)))
+def tap_udp_response(st, wire, services, sport=53):
+    ip = packets.build_ipv4(SERVER_IP, CLIENT_IP, 17, packets.build_udp(sport, _ephemeral(), wire))
+    pkt = packets.parse_packet(ip)
     pkt["direction"] = "s>c"
+    pkt["raw"] = ip.hex()
     st.tap(pkt)
 
 
@@ -168,6 +172,7 @@ async def syn_flood(st: stack_mod.VirtualStack, services: LabServices,
         wire = packets.build_ipv4(fake_ip, SERVER_IP, 6, seg)
         event = packets.parse_packet(wire)
         event["direction"] = "c>s"
+        event["raw"] = wire.hex()
         st.tap(event)
         if i % 20 == 0:
             await asyncio.sleep(20 / rate_per_s)
@@ -196,6 +201,61 @@ async def dns_tunnel(st: stack_mod.VirtualStack, services: LabServices,
         finally:
             sock.close()
         await asyncio.sleep(0.03)
+
+
+async def ping_sweep(st: stack_mod.VirtualStack, services: LabServices,
+                     subnet: str = "10.0.2.", hosts=range(1, 41),
+                     live_hosts=(10, 15, 22)):
+    """ICMP echo fan-out across a subnet - the classic network-discovery sweep.
+
+    Crafting raw ICMP needs CAP_NET_RAW, so - exactly like the SYN flood -
+    the segments are narrated: the bytes are the identical wire format a raw
+    socket would send (RFC 792 echo request), and live hosts answer with
+    echo replies. The detector watches the destination fan-out.
+    """
+    ident = random.randint(0, 2**15)
+    for i, h in enumerate(hosts):
+        dst = f"{subnet}{h}"
+        req = packets.build_icmp_echo(ident=ident, seq=i)
+        wire = packets.build_ipv4(CLIENT_IP, dst, 1, req)
+        event = packets.parse_packet(wire)
+        event["direction"] = "c>s"
+        event["raw"] = wire.hex()
+        st.tap(event)
+        if h in live_hosts:
+            rep = packets.build_icmp(0, 0, req[4:], ident=ident, seq=i)
+            rwire = packets.build_ipv4(dst, CLIENT_IP, 1, rep)
+            revent = packets.parse_packet(rwire)
+            revent["direction"] = "s>c"
+            revent["raw"] = rwire.hex()
+            st.tap(revent)
+        await asyncio.sleep(0.004)
+
+
+async def udp_flood(st: stack_mod.VirtualStack, services: LabServices,
+                    target_port: int | None = None, count=200, rate_per_s=800):
+    """A volumetric UDP flood against one service port.
+
+    Real UDP datagrams are fired at the lab's UDP socket (no root needed -
+    UDP needs no handshake, which is exactly why UDP floods exist: there is
+    no connection state to protect the victim). The detector watches the
+    datagram rate into a single destination port.
+    """
+    port = target_port or services.dns_port
+    payload = bytes(random.getrandbits(8) for _ in range(48))
+    for i in range(count):
+        # Narrate the attacker's virtual addresses; also send real datagrams
+        # for a slice of the flood so the lab socket genuinely receives bytes.
+        fake_ip = f"198.51.100.{random.randint(1, 254)}"   # TEST-NET-2
+        tap_udp(st, payload, services, src=fake_ip, dport=5000)  # narrated victim service port
+        if i % 25 == 0:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                sock.sendto(payload, ("127.0.0.1", port))
+            finally:
+                sock.close()
+        if i % 20 == 0:
+            await asyncio.sleep(20 / rate_per_s)
 
 
 def decode_tunnel_chunks(chunks: list[str]) -> bytes:

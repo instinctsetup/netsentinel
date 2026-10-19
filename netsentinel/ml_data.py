@@ -22,6 +22,10 @@ async def _collect(kind: str, services) -> dict:
         await generator.syn_flood(st, services, count=80)
     elif kind == "dns_tunnel":
         await generator.dns_tunnel(st, services, secret=b"the eagle has landed" * 2)
+    elif kind == "ping_sweep":
+        await generator.ping_sweep(st, services, hosts=random.sample(range(1, 60), 35))
+    elif kind == "udp_flood":
+        await generator.udp_flood(st, services, count=120)
     feats = detectors.window_features(table.window_packets())
     feats["half_open"] = table.half_open()
     return feats
@@ -33,7 +37,8 @@ async def build_dataset(samples_per_class=8):
     X, y = [], []
     try:
         for _ in range(samples_per_class):
-            for kind, label in (("benign", 0), ("port_scan", 1), ("syn_flood", 1), ("dns_tunnel", 1)):
+            for kind, label in (("benign", 0), ("port_scan", 1), ("syn_flood", 1),
+                                ("dns_tunnel", 1), ("ping_sweep", 1), ("udp_flood", 1)):
                 feats = await _collect(kind, services)
                 X.append(feats)
                 y.append(label)

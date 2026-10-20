@@ -87,6 +87,8 @@ def _ephemeral() -> int:
     if _next_port is None:
         _next_port = random.randint(20000, 30000)
     _next_port += 1
+    if _next_port > 65000:
+        _next_port = 20000
     return _next_port
 
 
@@ -251,7 +253,7 @@ async def udp_flood(st: stack_mod.VirtualStack, services: LabServices,
         # Narrate the attacker's virtual addresses; also send real datagrams
         # for a slice of the flood so the lab socket genuinely receives bytes.
         fake_ip = f"198.51.100.{random.randint(1, 254)}"   # TEST-NET-2
-        tap_udp(st, payload, services, src=fake_ip, dport=5000)  # narrated victim service port
+        tap_udp(st, payload, services, src=fake_ip, dport=port)  # narrated victim service port
         if i % 25 == 0:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             try:

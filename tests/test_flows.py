@@ -41,3 +41,14 @@ def test_rst_closes_connection():
     # RST arrives on the reverse flow key; original stays half-open, new flow RST
     table.update(d)
     assert any(f["state"] == "RST" for f in table.flows.values())
+
+
+def test_stale_flows_are_pruned():
+    import time as _time
+    table = flows.FlowTable(window_s=0.01)
+    pkt = {"ip": {"src": "10.0.0.1", "dst": "10.0.0.2", "protocol": 6, "total_len": 60},
+           "tcp": {"src_port": 40000, "dst_port": 80, "flags": {"SYN": True}}}
+    table.update(pkt)
+    assert len(table.flows) == 1
+    table._prune_flows(now=_time.time() + 200)
+    assert len(table.flows) == 0

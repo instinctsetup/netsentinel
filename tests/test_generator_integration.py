@@ -38,3 +38,11 @@ def test_port_scan_uses_real_connect_attempts(services):
     asyncio.run(generator.port_scan(st, services, ports=[services.http_port, 1, 2, 3]))
     syns = [e for e in events if "tcp" in e and e["tcp"]["flags"] == ["SYN"]]
     assert len(syns) == 4
+
+
+def test_udp_flood_respects_target_port(services):
+    events = []
+    st = stack_mod.VirtualStack(events.append)
+    asyncio.run(generator.udp_flood(st, services, target_port=4321, count=25))
+    ports = {e["udp"]["dst_port"] for e in events if "udp" in e}
+    assert ports == {4321}

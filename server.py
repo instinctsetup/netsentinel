@@ -21,7 +21,7 @@ MODEL_PATH = Path(__file__).parent / "netsentinel" / "window_model.json"
 EXPERIMENTS_FILE = Path(__file__).parent / "docs" / "experiments" / "results.json"
 
 # Live state
-TABLE = flows.FlowTable(window_s=10.0)
+TABLE = flows.FlowTable(window_s=ml_data.WINDOW_S)
 LISTENERS: list[WebSocket] = []
 ALERTS: list[dict] = []
 STARTED_AT = time.time()
@@ -40,14 +40,19 @@ RECENT_PACKETS: collections.deque = collections.deque(maxlen=200)  # for the ins
 
 
 def broadcast(event: dict):
-    dead = []
-    for ws in LISTENERS:
+    for ws in list(LISTENERS):
         try:
-            asyncio.get_event_loop().create_task(ws.send_json(event))
+            task = asyncio.get_event_loop().create_task(ws.send_json(event))
         except Exception:
-            dead.append(ws)
-    for ws in dead:
-        LISTENERS.remove(ws)
+            if ws in LISTENERS:
+                LISTENERS.remove(ws)
+            continue
+
+        def _cleanup(t: asyncio.Task, ws: WebSocket = ws):
+            if t.exception() is not None and ws in LISTENERS:
+                LISTENERS.remove(ws)
+
+        task.add_done_callback(_cleanup)
 
 
 def on_packet(pkt: dict):
@@ -113,6 +118,13 @@ async def startup():
     SERVICES = generator.LabServices()
     SERVICES.serve_forever()
     asyncio.get_event_loop().create_task(stats_ticker())
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    services = globals().get("SERVICES")
+    if services is not None:
+        services.close()
 
 
 @app.get("/api/health")

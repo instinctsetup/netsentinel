@@ -32,11 +32,19 @@ class FlowTable:
         self.recent: deque = deque()   # (timestamp, parsed packet) sliding window
         self.window_s = window_s
 
+    def _prune_flows(self, now: float, ttl: float = 120.0):
+        """Drop flows idle for `ttl`s - otherwise the table (and half_open())
+        grows without bound on a long-running server."""
+        stale = [k for k, f in self.flows.items() if now - f["last"] > ttl]
+        for k in stale:
+            del self.flows[k]
+
     def update(self, pkt: dict) -> dict:
         now = time.time()
         self.recent.append((now, pkt))
         while self.recent and now - self.recent[0][0] > self.window_s:
             self.recent.popleft()
+        self._prune_flows(now)
 
         ip = pkt["ip"]
         proto = "TCP" if "tcp" in pkt else "UDP" if "udp" in pkt else str(ip["protocol"])

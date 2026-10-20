@@ -179,7 +179,7 @@ def train_size_curve(rows, sizes=(2, 4, 8, 12), seeds=(1, 2, 3)):
         f1s = []
         for seed in seeds:
             rng = random.Random(seed)
-            train = rng.sample(by_class[0], n) + rng.sample(by_class[1], n * 5 // 5)
+            train = rng.sample(by_class[0], n) + rng.sample(by_class[1], n)
             used = set(map(id, train))
             test = [r for r in rows if id(r) not in used]
             f1s.append(score(train_on(train), test)["f1"])
@@ -198,7 +198,7 @@ async def intensity_curve():
         for size in (4, 8, 12, 20, 40, 80):
             hits = 0
             for _ in range(trials):
-                table = flows.FlowTable(window_s=60)
+                table = flows.FlowTable(window_s=ml_data.WINDOW_S)
                 st = stack_mod.VirtualStack(lambda p: table.update(p))
                 await generator.port_scan(st, services, ports=random.sample(range(1, 200), size))
                 feats = detectors.window_features(table.window_packets())
@@ -208,7 +208,7 @@ async def intensity_curve():
         for count in (10, 20, 30, 60, 120):
             hits = 0
             for _ in range(trials):
-                table = flows.FlowTable(window_s=60)
+                table = flows.FlowTable(window_s=ml_data.WINDOW_S)
                 st = stack_mod.VirtualStack(lambda p: table.update(p))
                 await generator.syn_flood(st, services, count=count)
                 feats = detectors.window_features(table.window_packets())
@@ -218,7 +218,7 @@ async def intensity_curve():
         for chunks in (2, 4, 8, 16):
             hits = 0
             for _ in range(trials):
-                table = flows.FlowTable(window_s=60)
+                table = flows.FlowTable(window_s=ml_data.WINDOW_S)
                 st = stack_mod.VirtualStack(lambda p: table.update(p))
                 secret = bytes(random.getrandbits(8) for _ in range(chunks * 25))
                 await generator.dns_tunnel(st, services, secret=secret)
@@ -229,7 +229,7 @@ async def intensity_curve():
         for hosts in (4, 8, 10, 20, 40):
             hits = 0
             for _ in range(trials):
-                table = flows.FlowTable(window_s=60)
+                table = flows.FlowTable(window_s=ml_data.WINDOW_S)
                 st = stack_mod.VirtualStack(lambda p: table.update(p))
                 await generator.ping_sweep(st, services, hosts=random.sample(range(1, 100), hosts))
                 feats = detectors.window_features(table.window_packets())
@@ -239,7 +239,7 @@ async def intensity_curve():
         for count in (20, 40, 60, 120, 200):
             hits = 0
             for _ in range(trials):
-                table = flows.FlowTable(window_s=60)
+                table = flows.FlowTable(window_s=ml_data.WINDOW_S)
                 st = stack_mod.VirtualStack(lambda p: table.update(p))
                 await generator.udp_flood(st, services, count=count)
                 feats = detectors.window_features(table.window_packets())

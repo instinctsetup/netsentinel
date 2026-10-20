@@ -8,9 +8,11 @@ import asyncio
 import random
 from . import detectors, flows, generator, stack as stack_mod
 
+WINDOW_S = 10.0  # must match server.py's live FlowTable
+
 
 async def _collect(kind: str, services) -> dict:
-    table = flows.FlowTable(window_s=60)
+    table = flows.FlowTable(window_s=WINDOW_S)
     st = stack_mod.VirtualStack(lambda pkt: table.update(pkt))
     if kind == "benign":
         names = random.sample(["www.example.com", "mail.example.org", "cdn.site.net",

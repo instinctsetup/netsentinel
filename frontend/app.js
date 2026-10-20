@@ -44,7 +44,7 @@ function addPacket(pkt, id, t) {
   tr.className = d.cls;
   tr.dataset.pid = id;
   const time = new Date(t * 1000).toTimeString().slice(0, 8);
-  tr.innerHTML = `<td>${time}</td><td>${d.proto}</td><td>${d.src}</td><td>${d.dst}</td><td>${d.info}</td><td>${d.len}</td>`;
+  tr.innerHTML = `<td>${time}</td><td>${esc(d.proto)}</td><td>${esc(d.src)}</td><td>${esc(d.dst)}</td><td>${esc(d.info)}</td><td>${esc(d.len)}</td>`;
   tr.onclick = () => selectPacket(id, tr);
   packetsBody.prepend(tr);
   while (packetsBody.rows.length > 60) packetsBody.deleteRow(-1);
@@ -60,7 +60,10 @@ async function selectPacket(id, tr) {
 }
 
 /* ---------------- inspector ---------------- */
-function kv(k, v) { return `<div class="frow"><span class="fk">${k}</span><span class="fv">${v}</span></div>`; }
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function kv(k, v) { return `<div class="frow"><span class="fk">${esc(k)}</span><span class="fv">${esc(v)}</span></div>`; }
 
 function renderInspector(p) {
   if (p.error) { $('#insp-sub').textContent = p.error; return; }
@@ -117,7 +120,7 @@ function addAlert(alert) {
   if (quiet) quiet.remove();
   const li = document.createElement('li');
   if (alert.severity === 'medium') li.className = 'medium';
-  li.innerHTML = `<span class="kind">[${alert.kind}]</span>${alert.why} <span class="hint">${alert.t}</span>`;
+  li.innerHTML = `<span class="kind">[${esc(alert.kind)}]</span>${esc(alert.why)} <span class="hint">${esc(alert.t)}</span>`;
   alertList.prepend(li);
   $('#stat-alerts').textContent = alertList.children.length;
 }
@@ -138,7 +141,7 @@ async function refreshFlows() {
   flowsBody.innerHTML = '';
   for (const f of data.flows.slice(0, 18)) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${f.src}</td><td>${f.dst}</td><td>${f.proto}</td><td>${f.packets}</td>` +
+    tr.innerHTML = `<td>${esc(f.src)}</td><td>${esc(f.dst)}</td><td>${esc(f.proto)}</td><td>${esc(f.packets)}</td>` +
                    `<td><span class="state ${f.state}">${f.state}</span></td>`;
     flowsBody.appendChild(tr);
   }
